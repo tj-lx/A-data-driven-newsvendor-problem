@@ -1,0 +1,35 @@
+Top 10 产品: TRADITIONAL BAGUETTE, CROISSANT, PAIN AU CHOCOLAT, COUPE, BANETTE, BAGUETTE, CEREAL BAGUETTE, SPECIAL BREAD, FORMULE SANDWICH, TARTELETTE
+训练集大小: 5090, 测试集大小: 1280
+使用的特征: weekday, month, is_public_holiday, lag_1, lag_7
+
+--- Level 1: 预测精度评估 ---
+Linear Regression RMSE: 27.54, MAE: 14.82, R^2: 90.10%
+Random Forest RMSE: 23.35, MAE: 12.71, R^2: 92.89%
+
+--- Level 2: 库存决策优化 (Target SL=0.67) ---
+Shapiro-Wilk 正态性检验 p-value: 1.939e-70
+平均日成本 (Normal假设): 9.2830
+平均日成本 (SAA数据驱动): 9.3797
+
+--- 服务水平敏感性分析 (Cost vs Service Level) ---
+SL=0.50 | Normal=9.5161 | SAA=9.5521 | Integrated=10.8756 | Normal更优或相当
+SL=0.70 | Normal=9.3245 | SAA=9.3430 | Integrated=9.3991 | Normal更优或相当
+SL=0.80 | Normal=9.6541 | SAA=9.2656 | Integrated=9.5315 | SAA更优
+SL=0.90 | Normal=10.4264 | SAA=9.4459 | Integrated=11.2785 | SAA更优
+SL=0.95 | Normal=11.2376 | SAA=10.1540 | Integrated=13.8155 | SAA更优
+
+--- Level 3: Integrated Optimization (tuned) ---
+SL=0.50 | Integrated (tuned)=10.5629 | best=(400, 2, 0.05)
+SL=0.70 | Integrated (tuned)=9.5468 | best=(200, 3, 0.05)
+SL=0.80 | Integrated (tuned)=9.8146 | best=(100, 3, 0.1)
+SL=0.90 | Integrated (tuned)=11.9529 | best=(100, 2, 0.1)
+SL=0.95 | Integrated (tuned)=13.1904 | best=(400, 4, 0.03)
+
+--- Level 3 方法说明 ---
+模型：GradientBoostingRegressor（loss=quantile, alpha=服务水平），预测结果进行非负裁剪
+调参：TimeSeriesSplit(3) + 网格 n_estimators∈{100,200,400}, max_depth∈{2,3,4}, learning_rate∈{0.03,0.05,0.1}
+结论：当前特征与数据规模下，Integrated 在高服务水平未稳定优于 SAA；需扩展外生变量与更细网格
+
+数据来源：
+原始交易数据：data/Bakery sales.csv
+清洗后日粒度数据：data/bakery_daily.csv

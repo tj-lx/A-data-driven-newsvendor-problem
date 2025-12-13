@@ -1,0 +1,166 @@
+\documentclass[a4paper,12pt]{article}
+
+% 宏包设置
+\usepackage{amsmath, amssymb, amsfonts} % 数学公式支持
+\usepackage{geometry} % 页面布局
+\usepackage{graphicx} % 图片插入
+\usepackage{booktabs} % 表格美化
+\usepackage{hyperref} % 超链接
+\usepackage{enumitem} % 列表格式
+\usepackage{float}
+\usepackage[UTF8]{ctex}
+
+% 页面边距
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+% 标题信息
+\title{\textbf{From Data to Decision: A Data-Driven Approach to the Newsvendor Problem}\\
+\large —— 课程文献阅读与复现报告}
+\author{汇报人：[您的姓名] \\ 课程：高级应用统计 (Advanced Applied Statistics)}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本文深度解读了 Huber 等人发表于 \textit{EJOR} (2019) 的论文。文章针对报童问题中需求分布未知的核心挑战，提出了基于大数据的三层决策框架。我们详细阐述了从需求预测到库存优化的统计方法论，并基于 Kaggle 的 French Bakery 数据集进行了实证复现，验证了非参数方法在库存决策中的有效性。
+\end{abstract}
+
+% 第一部分：基本研究问题
+\section{The Basic Research Problem}
+
+\subsection{商业背景与权衡}
+本文聚焦于零售管理中经典的\textbf{报童问题 (Newsvendor Problem)}。零售商（如连锁面包店）需在销售季节前决定易腐产品的订货量 $q$。核心权衡在于最小化期望总成本：
+\begin{equation}
+    \min_{q} \mathbb{E}[C(q, D)] = \mathbb{E} [c_u (D - q)^+ + c_o (q - D)^+]
+\end{equation}
+其中 $D$ 为随机需求，$c_u$ 为缺货成本 (Underage cost)，$c_o$ 为超储成本 (Overage cost)。
+
+\subsection{统计学挑战}
+在理论最优解中，订货量 $q^*$ 取决于需求累积分布函数 $F$ 的分位数：$q^* = F^{-1}(\frac{c_u}{c_u + c_o})$。
+然而，现实中的\textbf{根本难题}在于：
+\begin{itemize}
+    \item \textbf{分布未知 (Unknown Distribution)}：真实的需求分布 $F$ 往往无法获知，且可能随时间变化。
+    \item \textbf{特征利用不足}：传统方法往往忽略了天气、节假日、促销等外部特征向量 $X$ 对需求分布的影响。
+\end{itemize}
+因此，本文的研究问题是：\textbf{如何利用历史数据 $(D_t, X_t)$，在不预设分布形式的前提下，构建数据驱动的模型以实现成本最小化？}
+
+% 第二部分：思想与方法论
+\section{The Idea and Methodology}
+
+本文提出了一个\textbf{三层递进的数据驱动框架}，涵盖了从参数估计到非参数优化的完整路径。
+
+\subsection{Level 1: Demand Estimation (点预测)}
+利用统计学习方法估计给定特征 $x$ 下的需求期望 $\hat{y}(x) = \mathbb{E}[d|x]$。
+\begin{itemize}
+    \item \textbf{传统方法}：ARIMA, ETS (指数平滑)。
+    \item \textbf{机器学习 (ANN)}：文章构建了单隐层多层感知机 (MLP)。
+    \begin{equation}
+        \hat{y}(x) = f(W^{(2)} \sigma(W^{(1)}x + b^{(1)}) + b^{(2)})
+    \end{equation}
+    通过引入特征工程（如滞后销量 $Lag\_1, Lag\_7$ 和日历特征），捕捉非线性模式。
+\end{itemize}
+
+\subsection{Level 2: Inventory Optimization (库存优化)}
+基于预测结果 $\hat{y}$ 和预测误差 $\epsilon = d - \hat{y}$ 进行决策。
+\begin{itemize}
+    \item \textbf{Parametric (Model-based)}：假设误差服从正态分布 $\epsilon \sim \mathcal{N}(0, \hat{\sigma}^2)$。
+    $$q(x) = \hat{y}(x) + \Phi^{-1}(\text{target ratio}) \cdot \hat{\sigma}$$
+    \item \textbf{Non-parametric (SAA)}：\textbf{样本均值逼近 (Sample Average Approximation)}。不假设分布，直接使用历史误差样本的经验分布寻找分位数。
+    \textbf{优势}：避免了模型误设 (Misspecification) 风险，更具鲁棒性。
+\end{itemize}
+
+\subsection{Level 3: Integrated Estimation (集成优化)}
+跳过点预测，直接建立特征 $x$ 到最优订货量 $q^*$ 的映射。这等价于\textbf{分位数回归 (Quantile Regression)}。
+我们将报童损失函数直接作为神经网络的训练目标 (Loss Function)：
+\begin{equation}
+    \mathcal{L} = \frac{1}{n} \sum_{i=1}^{n} \left[ c_u (d_i - q(x_i))^+ + c_o (q(x_i) - d_i)^+ \right]
+\end{equation}
+该方法能自动适应\textbf{异方差性}（即需求的波动随特征变化）。
+
+% 第三部分：结果（包含论文结果与复现结果）
+\section{Data and Preparation}
+本研究基于 \textbf{French Bakery Daily Sales} 数据，原始为交易级记录。为复现论文方法，我们进行了数据重构与清洗：
+\begin{itemize}
+    \item 聚合到\textbf{日粒度}：按 \texttt{date, article} 汇总销量与收入，并对缺失日期进行\textbf{补零}，保留零销量日。
+    \item 价格解析与约束：解析含欧元符号与逗号小数的单价，计算 \texttt{avg\_price}；当 \texttt{sales>0} 且 \texttt{avg\_price} 缺失或非正数时\textbf{删除该行}。
+    \item 异常过滤：依据零销量比与非零天数剔除信息稀缺的产品，同时\textbf{保留销量 Top 10} 提升代表性。
+    \item 特征工程：构造 \texttt{weekday, month, is\_public\_holiday, lag\_1, lag\_7}；按时间 \textbf{80/20} 划分训练与测试集。
+\end{itemize}
+
+\section{The Results}
+
+\subsection{论文原实证结果 (Key Findings from Paper)}
+基于德国大型面包连锁店的数据，论文得出以下结论：
+\begin{enumerate}
+    \item \textbf{预测精度}：机器学习模型（特别是利用跨序列信息的 ANN）在 RMSE 指标上显著优于传统时间序列模型。
+    \item \textbf{成本表现}：
+    \begin{itemize}
+        \item \textbf{SAA vs Normal}：在大部分服务水平下，数据驱动的 SAA 方法成本低于正态分布假设，证明了非参数方法的价值。
+        \item \textbf{Integrated vs Separate}：集成方法在低服务水平下表现优异，但在高服务水平下对数据量要求极高，容易过拟合。
+    \end{itemize}
+\end{enumerate}
+
+\subsection{小组复现结果 (Our Replication Study)}
+我们基于 \textbf{Kaggle "French Bakery Daily Sales"} 数据集（Top 10 产品，约 6300 条样本）进行了完整复现。
+
+\begin{itemize}
+    \item \textbf{Level 1 预测表现}：
+    \begin{itemize}
+        \item \textbf{模型拟合}：Random Forest 取得了 \textbf{92.89\%} 的 $R^2$，显著优于 Linear Regression 的 90.10\%。RMSE 降低了约 15\%，验证了非线性模型在捕捉周期性需求上的优势。
+    \end{itemize}
+    
+    \item \textbf{统计检验}：
+    \begin{itemize}
+        \item \textbf{Shapiro-Wilk Test}：预测残差的 p-value 为 $1.94 \times 10^{-70}$，显著拒绝正态分布假设。这为采用非参数方法 (SAA) 提供了坚实的统计学基础。
+    \end{itemize}
+
+    \item \textbf{Level 2 决策敏感性分析 (关键发现)}：
+    我们测试了不同目标服务水平 (SL) 下的平均成本表现，观察到了显著的\textbf{“尾部效应” (Tail Effect)}：
+    \begin{itemize}
+        \item \textbf{在中低服务水平 ($SL \le 0.7$)}：Parametric (Normal) 方法表现稳健，成本略低于 SAA。这表明在分布中心区域，正态近似依然有效。
+        \item \textbf{在高服务水平 ($SL \ge 0.8$)}：数据驱动的 SAA 方法开始显著跑赢。特别是在 $SL=0.95$ 时，SAA 的平均成本比 Normal 假设低约 \textbf{10\%}。
+        \item \textbf{结论}：这复现并深化了原论文的观点——非参数方法 (SAA) 的核心价值在于处理\textbf{尾部风险 (Tail Risk)}。当零售商追求高服务水平（即极少缺货）时，依赖正态假设会带来巨大的潜在损失，而 SAA 展现了极强的鲁棒性。
+    \end{itemize}
+    
+    \item \textbf{Level 3 集成优化（分位数回归）}：
+    \begin{itemize}
+        \item \textbf{模型与方法}：在服务水平 $\alpha=\frac{c_u}{c_u+c_o}$ 下，直接以分位损失拟合最优订货量 $q(x)$；实现采用 \texttt{GradientBoostingRegressor}（\texttt{loss=quantile}, \texttt{alpha=SL}），并对预测进行\textbf{非负裁剪}以符合业务约束。
+        \item \textbf{调参与验证}：使用\textbf{时间序列交叉验证}（3 折）在网格 \texttt{n\_estimators} $\in \{100,200,400\}$、\texttt{max\_depth} $\in \{2,3,4\}$、\texttt{learning\_rate} $\in \{0.03,0.05,0.1\}$ 上搜索最优组合。
+        \item \textbf{代表性结果}：例如在 $SL=0.70$ 时，最优参数为 \texttt{(200, 3, 0.05)}，测试集平均成本约 \textbf{9.5468}；整体上在\textbf{高服务水平}下 Integrated 未稳定优于 SAA（见后文综合曲线），提示需进一步扩展外生变量与调优网格。
+    \end{itemize}
+\end{itemize}
+
+\paragraph{Level 2 决策可视化示例}
+选取某一产品在一段时间内展示\textbf{真实需求}、\textbf{ML 预测}与 \textbf{SAA 订货量}。绿色与红色区域分别表示\textbf{超储}与\textbf{缺货}成本，有助于直观理解 Level 2 的库存决策效果。
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{../output/inventory_result.png}
+    \caption{Level 2 决策可视化：真实需求、预测与 SAA 订货量}
+\end{figure}
+
+\paragraph{Level 3 简要说明与综合成本曲线}
+Level 3 采用\textbf{分位数回归}直接学习订货量 $q(x)$。下图展示 \textbf{Normal/SAA/Integrated} 在不同服务水平下的平均成本对比，其中\textbf{绿色曲线}为 Level 3 的 Integrated。结合当前特征与数据规模，Integrated 在高服务水平未稳定优于 SAA，提示需进一步扩展外生变量与调优网格。
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{../output/level23_cost_curve.png}
+    \caption{Level 2/3 综合：多服务水平平均成本对比（Normal/SAA/Integrated）}
+\end{figure}
+
+% 第四部分：理解与思考
+\section{Understanding, Comments and Thinking}
+
+\subsection{统计学视角的洞察}
+\begin{itemize}
+    \item \textbf{Prediction $\neq$ Decision}：统计上的“高预测精度”（低 MSE）并不完全等同于商业上的“低成本”。针对特定损失函数进行优化（Integrated Approach）是应用统计的高级方向。
+    \item \textbf{非参数的胜利}：本研究再次印证了在“大数据”时代，基于经验分布的 SAA 方法往往比强依赖假设的参数模型更安全、更有效。
+\end{itemize}
+
+\subsection{局限与改进}
+\begin{itemize}
+    \item \textbf{删失数据 (Censored Data)}：当前的复现假设 $Sales \approx Demand$，忽略了缺货导致的截断。未来可引入 \textbf{Tobit 模型} 或 Survival Analysis 中的 Kaplan-Meier 估计来还原真实需求。
+    \item \textbf{算法扩展}：考虑到实际数据量可能有限，未来可对比 \textbf{Random Forest} 或 \textbf{XGBoost}，这些树模型通常在表格数据上比简单的 ANN 表现更稳健。
+\end{itemize}
+
+\end{document}

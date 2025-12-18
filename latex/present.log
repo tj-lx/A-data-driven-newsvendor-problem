@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.2 NEXT) (preloaded format=xelatex 2025.12.17)  18 DEC 2025 13:00
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.2 NEXT) (preloaded format=xelatex 2025.12.17)  18 DEC 2025 13:34
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1058,7 +1058,7 @@ Package fontspec Info:
 [5]
 
 [6]
-Overfull \hbox (2.70744pt too wide) in paragraph at lines 159--160
+Overfull \hbox (2.70744pt too wide) in paragraph at lines 149--150
 |\TU/SimSun(0)/m/n/12 “集 成 估 计 与 优 化”|  策 略 的 有 效 性。|  具 体 实 施 中，|  本 研 究 采 用 \
 TU/lmtt/m/n/12 GradientBoostingRegressor
  []
@@ -1068,8 +1068,6 @@ TU/lmtt/m/n/12 GradientBoostingRegressor
 [7]
 
 [8]
-
-[9]
 File: table3.png Graphic file (type bmp)
 <table3.png>
 File: table4.png Graphic file (type bmp)
@@ -1078,21 +1076,21 @@ File: figure5.png Graphic file (type bmp)
 <figure5.png>
 
 
-[10]
+[9]
 File: ../output/inventory_result.png Graphic file (type bmp)
 <../output/inventory_result.png>
 
 
-[11]
+[10]
 File: ../output/cost_curve.png Graphic file (type bmp)
 <../output/cost_curve.png>
 
 
-[12]
+[11]
 (C:\Users\Xavier\AppData\Local\Programs\MiKTeX\tex/latex/listings\lstlang1.sty
 File: lstlang1.sty 2024/09/23 1.10c listings language file
 )
-Overfull \hbox (16.80095pt too wide) in paragraph at lines 342--343
+Overfull \hbox (16.80095pt too wide) in paragraph at lines 332--333
 []\TU/SimSun(0)/m/n/12 在 集 成 优 化 阶 段，|  我 们 使 用 了 \TU/lmtt/m/n/12 TimeSeriesSpl
 it \TU/lmr/m/n/12 (3 \TU/SimSun(0)/m/n/12 折\TU/lmr/m/n/12 ) \TU/SimSun(0)/m/n/1
 2 对 \TU/lmtt/m/n/12 GradientBoostingRegressor
@@ -1100,9 +1098,9 @@ it \TU/lmr/m/n/12 (3 \TU/SimSun(0)/m/n/12 折\TU/lmr/m/n/12 ) \TU/SimSun(0)/m/n/
 
 
 
-[13]
+[12]
 
-[14] (present.aux)
+[13] (present.aux)
  ***********
 LaTeX2e <2025-06-01> patch level 1
 L3 programming layer <2022/08/05>
@@ -1111,12 +1109,12 @@ Package rerunfilecheck Info: File `present.out' has not changed.
 (rerunfilecheck)             Checksum: 4890496BF6D3A87DA967251A2BD8779E;4761.
  ) 
 Here is how much of TeX's memory you used:
- 19605 strings out of 403249
- 404819 string characters out of 5460652
- 1127521 words of memory out of 5000000
- 47798 multiletter control sequences out of 15000+600000
+ 19594 strings out of 403249
+ 404196 string characters out of 5460652
+ 1127323 words of memory out of 5000000
+ 47787 multiletter control sequences out of 15000+600000
  637923 words of font info for 116 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
  93i,9n,111p,546b,1262s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on present.pdf (14 pages).
+Output written on present.pdf (13 pages).

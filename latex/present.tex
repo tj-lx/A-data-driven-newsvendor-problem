@@ -43,7 +43,6 @@
 	
 	% ==================== 摘要 ====================
 	\begin{abstract}
-		
 		本文深度解读并复现了 Huber 等人发表于 \textit{European Journal of Operational Research} (2019) 的论文 \textit{"A data-driven newsvendor problem: From data to decision"}。文章针对报童模型中需求分布未知的核心挑战，提出了基于大数据的三层决策框架。
 		
 		我们详细阐述了从参数化估计 (SFO) 到非参数样本均值逼近 (SAA)，再到端到端集成优化 (IFO) 的统计方法论演进。基于 Kaggle 的 French Bakery 真实销售数据集（$N \approx 6300$），我们构建了包含高维日历效应与时序滞后的特征工程，并对比了随机森林与梯度提升树在不同服务水平下的决策绩效。实证结果表明，在需求呈现显著非正态分布 ($p < 10^{-70}$) 的情况下，非参数的 SAA 方法展现出卓越的鲁棒性，有效规避了模型误设风险；而集成优化方法虽具有理论优势，但在有限样本的尾部估计中面临过拟合挑战。本文最后讨论了统计预测与商业决策目标之间的错位问题。
@@ -55,84 +54,63 @@
 	
 	% ==================== 正文 ====================
 	
-	% 第一部分：基本研究问题
+	% 第一部分：基本研究问题（内容已扩充，改为段落式）
 	\section{The Basic Research Problem}
 	
 	\subsection{商业背景：易腐品的库存困境}
-	在现代零售管理中，尤其是针对烘焙、生鲜等易腐产品（Perishable Items），零售商面临着极具挑战性的单周期库存决策问题，即经典的\textbf{报童问题 (Newsvendor Problem)}。此类产品的特点是生命周期极短（通常仅为 1 天），未售出的商品残值极低甚至为负（如废弃处理成本）。
+	在现代零售管理领域，库存决策是影响企业盈利能力的关键环节。特别是对于经营烘焙、生鲜等易腐产品（Perishable Items）的零售商而言，他们面临着极具挑战性的单周期库存决策问题，这在运筹学中被称为经典的报童问题（Newsvendor Problem）。此类产品的显著特点是生命周期极短，通常仅为一天，且未售出的商品残值极低甚至为负，例如需要支付额外的废弃处理成本。
 	
-	决策者需要在销售季节开始前确定订货量 $q$。这一决策并非追求预测的绝对准确，而是在两类非对称风险中寻找经济上的最优平衡：
-	\begin{itemize}
-		\item \textbf{缺货风险 (Underage Risk)}：若订货量不足 ($q < D$)，将导致直接的销售机会损失，单位缺货成本为 $c_u = p - c$。
-		\item \textbf{过剩风险 (Overage Risk)}：若订货量过剩 ($q > D$)，将导致库存积压，单位超储成本为 $c_o = c - s$（其中 $s$ 为残值）。
-	\end{itemize}
+	决策者需要在销售季节开始前确定订货量 $q$。这一决策本质上是在不确定性环境下对两种非对称风险进行权衡。一方面，零售商面临缺货风险（Underage Risk），若订货量不足（$q < D$），将直接导致销售机会的损失，并可能因缺货而损害长期的客户满意度与品牌商誉，单位缺货成本通常由产品的边际利润决定。另一方面，零售商面临过剩风险（Overage Risk），若订货量过剩（$q > D$），过多的库存将无法在保质期内售出，导致库存积压资金占用以及直接的报废损失，单位过剩成本由采购成本与残值之差决定。因此，如何在需求发生前确定一个最优的订货量，以在长期的经营中最小化这两类风险带来的期望总成本，是本研究关注的核心商业问题。
 	
 	\subsection{数学模型与最优解推导}
-	假设需求 $D$ 为连续随机变量，其概率密度函数为 $f(x)$，累积分布函数为 $F(x)$。目标是最小化期望总成本 $\mathbb{E}[C(q, D)]$：
+	为了量化上述权衡，我们引入报童问题的数学模型。假设需求 $D$ 为一个连续随机变量，其概率密度函数为 $f(x)$，累积分布函数为 $F(x)$。定义单位缺货成本为 $c_u$，单位过剩成本为 $c_o$。决策者的目标是选择一个非负的订货量 $q$，使得期望总成本 $\mathbb{E}[C(q, D)]$ 最小化：
 	\begin{equation}
 		\min_{q \ge 0} G(q) = c_u \int_{q}^{\infty} (x - q) f(x) dx + c_o \int_{0}^{q} (q - x) f(x) dx
 	\end{equation}
-	利用莱布尼茨积分法则 (Leibniz Integral Rule) 对 $q$ 求一阶导数（详细推导见\textbf{附录 B}），可得一阶最优性条件：
+	该目标函数是一个关于 $q$ 的凸函数，因此可以通过求导寻找全局最优解。利用莱布尼茨积分法则（Leibniz Integral Rule）对 $q$ 求一阶导数（详细推导过程参见附录 C），我们可以得到一阶最优性条件（First-order Optimality Condition）：
 	\begin{equation}
 		\frac{dG(q)}{dq} = -c_u (1 - F(q)) + c_o F(q) = 0
 	\end{equation}
-	整理后可得著名的\textbf{临界分位数 (Critical Fractile)} 公式：
+	整理上述方程，可得著名的临界分位数（Critical Fractile）公式，这构成了报童问题的理论基石：
 	\begin{equation}
 		F(q^*) = \frac{c_u}{c_u + c_o} \implies q^* = F^{-1}(\alpha), \quad \text{where } \alpha = \frac{c_u}{c_u + c_o}
 	\end{equation}
+	其中 $\alpha$ 被称为目标服务水平（Target Service Level），它反映了在最优订货策略下，需求被完全满足的概率。
 	
 	\subsection{核心统计学挑战}
-	尽管理论解形式优美，但在实际应用中面临两大根本性统计难题：
-	\begin{itemize}
-		\item \textbf{分布未知 (Model Uncertainty)}：真实需求分布 $F$ 往往无法获知。传统方法常假设 $F$ 服从正态分布 $\mathcal{N}(\mu, \sigma^2)$，但实际销售数据常表现出\textbf{厚尾 (Fat-tail)} 和\textbf{右偏 (Right-skewness)}。参数化假设会导致在尾部（即高服务水平 $\alpha > 0.9$）产生巨大的估计偏差。
-		\item \textbf{条件异方差性 (Conditional Heteroscedasticity)}：需求 $D$ 并非独立同分布 (i.i.d.)，而是受到外部特征向量 $X$（如天气、节假日）的影响。即 $D|X \sim F(\cdot|X)$。不仅需求的条件均值 $\mathbb{E}[D|X]$ 会随 $X$ 变化，其条件方差 $\text{Var}(D|X)$ 也会动态改变。传统时间序列模型往往忽略了这种二阶矩的动态性。
-	\end{itemize}
+	尽管上述理论解的形式非常简洁优美，但在实际应用中，直接套用该公式面临着巨大的障碍。这些障碍主要源于现实数据环境与理想数学假设之间的差距，具体体现在以下两个核心统计学挑战上。
 	
-	% 第二部分：思想与方法论
+	首先是模型不确定性（Model Uncertainty）与分布未知的问题。在理论推导中，我们假设需求分布 $F$ 是已知的。然而在现实商业环境中，真实的需求分布往往是未知的黑箱。传统方法通常为了计算简便，强行假设需求服从正态分布 $\mathcal{N}(\mu, \sigma^2)$。但大量的实证研究表明，零售销售数据往往表现出明显的非正态特征，如厚尾（Fat-tail）、右偏（Right-skewness）或多峰分布。如果盲目使用参数化假设，会导致对尾部概率的估计产生巨大偏差。特别是当最优订货量位于分布的尾部（即高服务水平 $\alpha > 0.9$）时，这种分布误设带来的成本增加是灾难性的。
+	
+	其次是条件异方差性（Conditional Heteroscedasticity）的挑战。经典的报童模型往往假设需求是独立同分布（i.i.d.）的，或者仅仅关注均值的变化。但在现实中，需求 $D$ 受到多种外部特征向量 $X$（如星期、天气、节假日、促销活动）的复杂影响，即 $D|X \sim F(\cdot|X)$。这意味着不仅需求的条件均值 $\mathbb{E}[D|X]$ 会随特征 $X$ 变化，其条件方差 $\text{Var}(D|X)$ 以及分布的高阶矩也会随之动态改变。例如，周末的需求不仅均值更高，其波动性（方差）也往往比工作日更大。传统的时间序列模型往往忽略了这种二阶矩的动态依赖性，导致在不确定性较高时安全库存设置不足，或在不确定性较低时造成库存浪费。
+	
+	% 第二部分：思想与方法论（内容已扩充，改为段落式）
 	\section{The Idea and Methodology}
 	
-	为了解决上述挑战，本文构建了一个从参数化估计到非参数端到端学习的三层递进框架。
+	为了解决上述统计学挑战，本文复现并探讨了一个从参数化估计到非参数端到端学习的三层递进决策框架。这三个层级分别代表了统计学习在运筹优化中不同程度的融合与深化。
 	
 	\subsection{Level 1: Separate Forecasting and Optimization (SFO)}
-	这是工业界最标准的“两阶段法”。其核心假设是将预测与优化分离。
-	\begin{itemize}
-		\item \textbf{需求估计}：利用机器学习模型（如 Random Forest）估计条件均值 $\hat{\mu}(X) = \mathbb{E}[D|X]$。训练目标通常是最小化均方误差 (MSE)：
-		\begin{equation}
-			\min_{\theta} \sum (d_i - f(x_i; \theta))^2
-		\end{equation}
-		\item \textbf{库存优化}：假设预测残差 $\epsilon = D - \hat{\mu}$ 服从参数化分布（通常为正态分布 $\mathcal{N}(0, \hat{\sigma}^2)$）。最优订货量为：
-		\begin{equation}
-			q^{SFO}(X) = \hat{\mu}(X) + \Phi^{-1}(\alpha) \cdot \hat{\sigma}
-		\end{equation}
-	\end{itemize}
-	\textbf{局限性}：该方法存在“目标错位”——MSE 关注均值回归，而库存决策关注尾部风险。且同方差正态假设无法适应实际数据的复杂波动。
+	Level 1 被称为“分离预测与优化”法，这是目前工业界最标准、应用最广泛的范式，也就是常说的“两阶段法”。其核心思想是将库存决策过程人为地拆解为两个独立的步骤：先进行点预测，再进行库存优化。
+	
+	在第一阶段（需求估计），我们利用统计学习或机器学习模型（如线性回归、随机森林等）来估计给定特征 $X$ 下的需求条件均值 $\hat{\mu}(X) = \mathbb{E}[D|X]$。这一阶段的模型训练目标通常是最小化均方误差（MSE）。在第二阶段（库存优化），决策者基于第一阶段的预测结果，假设预测残差 $\epsilon = D - \hat{\mu}$ 服从某种参数化分布，通常为正态分布 $\mathcal{N}(0, \hat{\sigma}^2)$。基于此假设，最优订货量被计算为预测均值加上安全库存：$q^{SFO}(X) = \hat{\mu}(X) + \Phi^{-1}(\alpha) \cdot \hat{\sigma}$。
+	
+	然而，这种方法存在显著的局限性。首先，它割裂了预测与决策的内在联系，导致了“目标错位”——预测模型关注的是均值的准确性（MSE），而库存决策关注的是分布的尾部风险（分位数）。其次，正态分布和同方差假设往往过于理想化，无法捕捉实际数据中的复杂波动模式，容易导致在高波动时段的缺货或低波动时段的过剩。
 	
 	\subsection{Level 2: Sample Average Approximation (SAA)}
-	SAA 是一种数据驱动的非参数方法，旨在修正 Level 1 的分布假设偏差。
-	\begin{itemize}
-		\item \textbf{经验分布构建}：不预设残差分布形式，而是直接利用训练集内的经验残差样本 $\mathcal{E} = \{e_1, e_2, ..., e_n\}$ 构建经验累积分布函数 (ECDF)：
-		\begin{equation}
-			\hat{F}_n(z) = \frac{1}{n}\sum_{i=1}^{n} \mathbb{I}(e_i \le z)
-		\end{equation}
-		\item \textbf{决策规则}：直接寻找经验残差的分位数：
-		\begin{equation}
-			q^{SAA}(X) = \hat{\mu}(X) + \inf \{ z : \hat{F}_n(z) \ge \alpha \}
-		\end{equation}
-	\end{itemize}
-	\textbf{统计学原理}：根据格里文科-坎泰利定理 (Glivenko-Cantelli Theorem)，经验分布一致收敛于真实分布。因此 SAA 能够在大样本下捕捉到数据的真实尾部特征，具有\textbf{渐进最优性 (Asymptotic Optimality)}。
+	为了克服 Level 1 中参数化假设带来的偏差，Level 2 引入了“样本均值逼近”（Sample Average Approximation, SAA）方法。这是一种数据驱动的非参数方法，其核心理念是“让数据自己说话”，不再预设残差服从任何特定的理论分布。
+	
+	SAA 方法的具体操作流程是：首先，利用训练集数据训练预测模型，并计算出历史样本内的所有预测残差，形成一个经验残差集合 $\mathcal{E} = \{e_1, e_2, ..., e_n\}$。然后，利用这些残差构建经验累积分布函数（ECDF）：$\hat{F}_n(z) = \frac{1}{n}\sum_{i=1}^{n} \mathbb{I}(e_i \le z)$。在决策阶段，我们直接在经验残差分布中寻找对应目标服务水平 $\alpha$ 的分位数，并将其叠加到点预测值上得到最终订货量：$q^{SAA}(X) = \hat{\mu}(X) + \inf \{ z : \hat{F}_n(z) \ge \alpha \}$。
+	
+	从统计学原理来看，根据格里文科-坎泰利定理（Glivenko-Cantelli Theorem），随着样本量的增加，经验分布函数会一致收敛于真实分布函数。因此，SAA 方法在理论上具有渐进最优性。它能够自动适应数据的偏态、峰态以及厚尾特征，从而在无需人工指定分布类型的情况下，提供比正态假设更为鲁棒的库存决策，特别是在需求分布严重偏离正态分布的场景下优势明显。
 	
 	\subsection{Level 3: Integrated Forecasting and Optimization (IFO)}
-	IFO（或称端到端学习）彻底打破了预测与优化的边界，直接学习特征 $X$ 到最优决策 $q^*$ 的映射。
+	Level 3 代表了“集成预测与优化”（Integrated Forecasting and Optimization, IFO），也就是端到端的学习范式。这一方法彻底打破了预测与优化的边界，试图直接学习从特征向量 $X$ 到最优决策量 $q^*$ 的映射函数，而不再经过“先预测均值，再估计方差”的中间步骤。
 	
-	其核心洞察在于：报童问题的目标函数本质上等价于\textbf{分位数回归 (Quantile Regression)} 的损失函数。我们构建梯度提升树 (GBR)，直接最小化\textbf{弹球损失 (Pinball Loss)}：
-	\begin{equation}
-		\mathcal{L}_{\alpha} = \frac{1}{n} \sum_{i=1}^{n} \rho_{\alpha}(d_i - q(x_i))
-	\end{equation}
-	其中 $\rho_{\alpha}(u) = u(\alpha - \mathbb{I}(u < 0))$。
+	IFO 的核心洞察在于数学上的等价性：报童问题的期望成本最小化目标，在数学形式上等价于分位数回归（Quantile Regression）的损失函数最小化。具体而言，我们可以构建一个机器学习模型（如梯度提升树），直接以弹球损失（Pinball Loss）作为训练时的损失函数：$\mathcal{L}_{\alpha} = \frac{1}{n} \sum_{i=1}^{n} \rho_{\alpha}(d_i - q(x_i))$，其中 $\rho_{\alpha}$ 为非对称的分位数损失函数。
 	
-	\textbf{优势}：IFO 模型不仅预测了需求水平，还隐式地建模了“不同特征下的需求不确定性”。例如，模型可以学习到“周末的需求方差比工作日大”，从而在周末自动增加安全库存，实现了对\textbf{条件异方差}的自动适应。
+	相比于前两个层级，IFO 的最大优势在于它能够隐式地建模“条件异方差性”。模型在训练过程中会根据特征 $X$ 的不同，自动调整输出的决策量，使其不仅反映需求的均值变化，也反映需求不确定性的变化。例如，模型可以自动学习到“周末的需求方差比工作日大”这一规律，从而在周末自动增加安全库存缓冲。这种方法在理论上是最优的，因为它实现了预测目标与商业决策目标的完全对齐。
 	
-	% 第三部分：结果
+	% 第三部分：数据与结果（文字微调，图表已移至附录B）
 	\section{Data Source and Empirical Results}
 	\subsection{原论文数据处理}
 	原研究采用了德国某大型连锁面包店的销售数据，涵盖 5 家门店的 11 种核心产品，时间跨度为 88 周。针对零售数据中普遍存在的\textbf{需求截断}问题——即因库存耗尽导致观测到的销量低于真实需求，原作者创新性地利用日内销售模式对缺货时段进行了插值还原，从而获得了对真实历史需求的估计。此外，为了捕捉复杂的消费行为模式，原研究构建了包含天气（温度、云层）、地理位置（学校、商圈）及详细日历特征的丰富外生变量集。
@@ -148,19 +126,17 @@
 	基于德国某大型连锁面包店 88 周的真实运营数据（涵盖 5 家门店与 11 个 SKU），Huber 等人 (2019) 进行了系统的实证评估。实验采用滚动窗口机制进行严格的样本外测试，旨在从数据规模与特征组合两个维度，全面评估不同决策模型的绩效表现。
 	
 	\subsubsection{Level 1: 点预测精度分析}
-	在需求估计层面，研究对比了以指数平滑和 ARIMA 为代表的传统时间序列方法与以多层感知机和梯度提升树为代表的机器学习方法。如原文 Table 3（见\textbf{附录 A 图 \ref{fig:paper_table3}}）所示，当机器学习模型仅基于单变量时间序列进行独立训练时，其相较于传统方法的优势并不显著。
+	在需求估计层面，研究对比了以指数平滑和 ARIMA 为代表的传统时间序列方法与以多层感知机和梯度提升树为代表的机器学习方法。如附录 A 图 \ref{fig:paper_table3} 所示，当机器学习模型仅基于单变量时间序列进行独立训练时，其相较于传统方法的优势并不显著。
 	
-	然而，当采用跨序列池化训练策略并引入高维外生特征时，机器学习模型展现出显著的性能优势。具体而言，该模型能够有效捕捉周度季节性与天气因素之间的非线性交互效应，从而大幅降低均方根误差。图 \ref{fig:paper_table3} 展示了各模型精度的具体对比，结果显示跨序列池化训练的机器学习方法在各项误差指标上均显著优于传统单变量方法。
+	然而，当采用跨序列池化训练策略并引入高维外生特征时，机器学习模型展现出显著的性能优势。具体而言，该模型能够有效捕捉周度季节性与天气因素之间的非线性交互效应，从而大幅降低均方根误差。附录 A 图 \ref{fig:paper_table3} 展示了各模型精度的具体对比，结果显示跨序列池化训练的机器学习方法在各项误差指标上均显著优于传统单变量方法。
 	
 	\subsubsection{Level 2: 库存绩效与尾部风险}
 	在将预测结果转化为库存决策的过程中，研究揭示了预测精度与最终运营成本之间存在显著的正相关性，且不同优化方法的表现呈现出明显的非对称效应。
 	
-	如原文 Table 4（见\textbf{附录 A 图 \ref{fig:paper_table4}}）所示，在目标服务水平不高于 0.9 的区间内，非参数的样本均值逼近方法普遍优于参数化的正态分布假设。这表明 SAA 方法能够更有效地利用残差分布信息，克服真实需求分布的有偏性。然而，当服务水平提升至 0.95 时，受限于尾部样本的稀疏性，SAA 方法的估计方差显著增大；此时，正态分布假设凭借其参数化的正则特性，反而能提供更为稳定的成本控制表现。
+	如附录 A 图 \ref{fig:paper_table4} 所示，在目标服务水平不高于 0.9 的区间内，非参数的样本均值逼近方法普遍优于参数化的正态分布假设。这表明 SAA 方法能够更有效地利用残差分布信息，克服真实需求分布的有偏性。然而，当服务水平提升至 0.95 时，受限于尾部样本的稀疏性，SAA 方法的估计方差显著增大；此时，正态分布假设凭借其参数化的正则特性，反而能提供更为稳定的成本控制表现。
 	
 	\subsubsection{Level 3 与样本量敏感性分析}
-	针对端到端的集成优化及样本量的边际效应，原文 Figure 5（见\textbf{附录 A 图 \ref{fig:paper_fig5}}）提供了直观的趋势分析。研究发现，基于分位数回归的集成优化策略仅在低服务水平且数据量极其充足的条件下才具有竞争力；在数据稀疏区域，其泛化能力不如“预测加优化”的分离式策略。
-	
-	此外，样本量敏感性分析表明，机器学习模型是唯一随着样本量增加而持续降低成本的方法，而朴素预测等传统方法的性能并未随数据规模扩大而显著改善。
+	针对端到端的集成优化及样本量的边际效应，附录 A 图 \ref{fig:paper_fig5} 提供了直观的趋势分析。研究发现，基于分位数回归的集成优化策略仅在低服务水平且数据量极其充足的条件下才具有竞争力；在数据稀疏区域，其泛化能力不如“预测加优化”的分离式策略。此外，样本量敏感性分析表明，机器学习模型是唯一随着样本量增加而持续降低成本的方法。
 	
 	\subsection{小组复现结果}
 	为了验证原论文提出的数据驱动框架在不同数据集上的泛化能力与有效性，本研究采用 \textbf{Kaggle "French Bakery Daily Sales"} 数据集，筛选销量排名前 10 的核心产品（样本量 $N \approx 6300$），对需求估计、库存优化及集成优化三个层级进行了系统性的复现与实证分析。
@@ -168,126 +144,40 @@
 	\subsubsection{Level 1: 需求预测与特征工程}
 	在需求估计层面，本研究构建了包含短期与周期性滞后项（$Lag\_1, Lag\_7$）及日历特征（\texttt{weekday}, \texttt{month}）的高维特征空间，并分别训练了作为基准的线性回归模型与作为核心研究对象的随机森林模型。
 	
-	实证结果如表 \ref{tab:level1_perf} 所示，机器学习模型展现出显著优越的拟合优度。具体而言，Random Forest 模型的 $R^2$ Score 达到 \textbf{92.89\%}，显著高于线性基准模型的 90.10\%；同时，其均方根误差从 27.54 降至 23.35，相对改善幅度达 \textbf{15.2\%}。
-	
-	\begin{table}[htbp]
-		\centering
-		\caption{Level 1 需求预测模型性能对比}
-		\label{tab:level1_perf}
-		\begin{tabular}{lccc}
-			\toprule
-			\textbf{Model} & \textbf{RMSE} & \textbf{MAE} & \textbf{$R^2$ Score} \\
-			\midrule
-			Linear Regression & 27.54 & 14.82 & 90.10\% \\
-			\textbf{Random Forest} & \textbf{23.35} & \textbf{12.71} & \textbf{92.89\%} \\
-			\midrule
-			\textit{Improvement} & \textit{-15.2\%} & \textit{-14.2\%} & \textit{+2.79 \%} \\
-			\bottomrule
-		\end{tabular}
-	\end{table}
+	实证结果如\textbf{附录 B 表 \ref{tab:level1_perf}} 所示，机器学习模型展现出显著优越的拟合优度。具体而言，Random Forest 模型的 $R^2$ Score 达到 \textbf{92.89\%}，显著高于线性基准模型的 90.10\%；同时，其均方根误差从 27.54 降至 23.35，相对改善幅度达 \textbf{15.2\%}。这一结果表明，简单的线性模型难以充分挖掘数据中的特征价值。而通过引入非线性模型（随机森林），能够有效捕捉面包销售数据中存在的“周度季节性”与“短期自相关”之间的复杂非线性交互关系，从而大幅降低预测残差，为后续的库存决策提供更精准的均值估计。
 	
 	\subsubsection{Level 2: 统计检验与库存决策优化}
 	在库存决策阶段，本研究首先对 Random Forest 模型的预测残差进行了统计诊断，随后对比了参数化与非参数化方法的成本表现。
 	
-	\textbf{1. 残差分布诊断}：
-	Shapiro-Wilk 正态性检验结果显示，p-value 远小于显著性水平 0.05 ($p = 1.94 \times 10^{-70}$)，从而在统计上以极高的置信度\textbf{拒绝了残差服从正态分布的原假设}。这一显著的非正态特征表明传统参数模型存在模型误设风险，为采用基于样本均值逼近的非参数方法提供了坚实的统计学依据。
+	首先进行残差分布诊断。Shapiro-Wilk 正态性检验结果显示，p-value 远小于显著性水平 0.05 ($p = 1.94 \times 10^{-70}$)，从而在统计上以极高的置信度\textbf{拒绝了残差服从正态分布的原假设}。这一显著的非正态特征表明传统参数模型存在严重的模型误设风险，为采用基于样本均值逼近的非参数方法提供了坚实的统计学依据。
 	
-	\textbf{2. 决策敏感性与尾部效应}：
-	我们测试了不同目标服务水平下各方法的平均日成本，具体结果如表 \ref{tab:cost_comparison} 所示。通过对比分析，我们观察到显著的\textbf{“尾部效应”}：
+	其次分析决策敏感性与尾部效应。我们测试了不同目标服务水平下各方法的平均日成本，具体结果如\textbf{附录 B 表 \ref{tab:cost_comparison}} 所示。通过对比分析，我们观察到显著的\textbf{“尾部效应”}：在中低服务水平（$SL \le 0.7$）下，正态参数化方法表现稳健，成本与 SAA 方法持平甚至略优，这符合中心极限定理在分布中心区域的适用性。然而，随着服务水平的提升（$SL \ge 0.8$），数据驱动的 SAA 方法展现出显著优势；特别是在 $SL=0.95$ 的极端分位数下，SAA 的平均成本较正态假设降低了约 \textbf{10\%}。该结果证实，正态假设倾向于低估极端需求的概率（即忽视了“肥尾”现象），而 SAA 方法在处理高服务水平要求的库存决策时具有更强的鲁棒性。
 	
-	在中低服务水平（$SL \le 0.7$）下，正态参数化方法表现稳健，成本与 SAA 方法持平甚至略优，这符合中心极限定理在分布中心区域的适用性。然而，随着服务水平的提升（$SL \ge 0.8$），数据驱动的 SAA 方法展现出显著优势；特别是在 $SL=0.95$ 的极端分位数下，SAA 的平均成本较正态假设降低了约 \textbf{10\%}。该结果证实，正态假设倾向于低估极端需求的概率（即忽视了“肥尾”现象），而 SAA 方法在处理高服务水平要求的库存决策时具有更强的鲁棒性。
-	
-	\begin{table}[htbp]
-		\centering
-		\caption{不同服务水平下的平均日成本对比}
-		\label{tab:cost_comparison}
-		\begin{tabular}{c|cc|c}
-			\toprule
-			\textbf{Service Level} & \multicolumn{2}{c|}{\textbf{Level 2}} & \textbf{Level 3} \\
-			\textbf{目标} & 正态 & \textbf{SAA} & 分位数回归 \\
-			\midrule
-			0.50 & \textbf{9.52} & 9.55 & 10.56 \\
-			0.70 & \textbf{9.32} & 9.34 & 9.55 \\
-			0.80 & 9.65 & \textbf{9.27} & 9.81 \\
-			0.90 & 10.43 & \textbf{9.45} & 11.95 \\
-			0.95 & 11.24 & \textbf{10.15} & 13.19 \\
-			\bottomrule
-		\end{tabular}
-	\end{table}
-	
-	\textbf{3. 决策可视化解读}：
-	图 \ref{fig:level2_viz} 直观展示了某一产品在测试集期间的决策细节。图中绿色阴影区域表示超储带来的浪费成本，红色阴影区域表示缺货带来的机会成本。可以看出，SAA 方法计算出的订货量（绿线）并非对预测均值（蓝线）的简单线性平移，而是根据局部残差分布特征进行动态调整，从而在需求波峰处有效控制了缺货风险（红色区域面积）。
-	
-	\begin{figure}[htbp]
-		\centering
-		\IfFileExists{../output/inventory_result.png}{\includegraphics[width=0.95\textwidth]{../output/inventory_result.png}}{\fbox{\strut SAA 库存决策图缺失，请检查路径}}
-		\caption{Level 2 决策可视化：真实需求、ML 预测值与基于 SAA 的最优订货量}
-		\label{fig:level2_viz}
-	\end{figure}
+	此外，\textbf{附录 B 图 \ref{fig:level2_viz}} 直观展示了某一产品在测试集期间的决策细节。图中绿色阴影区域表示超储带来的浪费成本，红色阴影区域表示缺货带来的机会成本。可以看出，SAA 方法计算出的订货量（绿线）并非对预测均值（蓝线）的简单线性平移，而是根据局部残差分布特征进行动态调整，从而在需求波峰处有效控制了缺货风险。
 	
 	\subsubsection{Level 3: 基于分位数回归的集成优化}
-	作为本研究的进阶探究，我们复现了基于\textbf{分位数回归}的端到端决策模型，旨在验证“集成估计与优化”策略的有效性。
+	作为本研究的进阶探究，我们复现了基于\textbf{分位数回归}的端到端决策模型，旨在验证“集成估计与优化”策略的有效性。具体实施中，本研究采用 \texttt{GradientBoostingRegressor} 作为基学习器，将损失函数设定为分位数损失，直接针对特定服务水平 $\alpha = \frac{c_u}{c_u + c_o}$ 优化最优订货量 $q(x)$。为了防止过拟合，我们采用了 3 折时间序列交叉验证，在包含 \texttt{n\_estimators}、\texttt{max\_depth} 及 \texttt{learning\_rate} 的参数网格中进行搜索。
 	
-	\textbf{1. 模型构建与超参数调优}：
-	具体实施中，本研究采用 \texttt{GradientBoostingRegressor} 作为基学习器，将损失函数设定为分位数损失，直接针对特定服务水平 $\alpha = \frac{c_u}{c_u + c_o}$ 优化最优订货量 $q(x)$。为了防止过拟合，我们采用了 3 折时间序列交叉验证，在包含 \texttt{n\_estimators}、\texttt{max\_depth} 及 \texttt{learning\_rate} 的参数网格中进行搜索。
+	\textbf{附录 B 表 \ref{tab:level3_tuning}} 展示了不同服务水平下的最优模型配置。可以看出，随着目标分位数的提高（即服务水平要求变严），模型倾向于选择更复杂的参数组合（如更高的 \texttt{n\_estimators}），以捕捉尾部极端值的非线性模式。
 	
-	表 \ref{tab:level3_tuning} 展示了不同服务水平下的最优模型配置。可以看出，随着目标分位数的提高（即服务水平要求变严），模型倾向于选择更复杂的参数组合（如更高的 \texttt{n\_estimators}），以捕捉尾部极端值的非线性模式。
+	\textbf{附录 B 图 \ref{fig:cost_curve}} 汇总了 Normal、SAA 及 Integrated 三种方法在多服务水平下的成本演变趋势。在具体方法对比中，Integrated 方法（绿线）在 $SL=0.70$ 处取得了全场最低的平均日成本（9.55），展现了端到端学习策略在特定区间的优化潜力；然而，当进入 $SL \ge 0.90$ 的高服务水平区间时，集成方法并未表现出优于 SAA 方法（橙线）的显著优势，部分指标甚至略有逊色。这一现象与原论文的实证结论高度一致，主要归因于端到端模型试图在有限样本（本研究约 6300 条）下直接学习输入特征与极端分位数（如 95\% 分位点）之间的复杂非线性映射，其对数据规模的高敏感性导致了在数据稀疏区域的泛化能力不如结构更为简约的 SAA 方法稳定。
 	
-	\begin{table}[htbp]
-		\centering
-		\caption{Level 3 集成优化模型最优超参数配置}
-		\label{tab:level3_tuning}
-		\small
-		\begin{tabular}{ccc}
-			\toprule
-			\textbf{Target SL} & \textbf{Test Cost} & \textbf{Best Parameters (n\_estimators, max\_depth, lr)} \\
-			\midrule
-			0.50 & 10.56 & (400, 2, 0.05) \\
-			0.70 & \textbf{9.55} & (200, 3, 0.05) \\
-			0.80 & 9.81 & (100, 3, 0.10) \\
-			0.90 & 11.95 & (100, 2, 0.10) \\
-			0.95 & 13.19 & (400, 4, 0.03) \\
-			\bottomrule
-		\end{tabular}
-	\end{table}
-	
-	\textbf{2. 综合成本分析与局限性讨论}：
-	图 \ref{fig:cost_curve} 汇总了 Normal、SAA 及 Integrated 三种方法在多服务水平下的成本演变趋势。总体而言，随着目标服务水平的提升，由于缺货惩罚权重的增加，所有模型的预期总成本均呈现上升态势。
-	
-	在具体方法对比中，Integrated 方法（绿线）在 $SL=0.70$ 处取得了全场最低的平均日成本（9.55），展现了端到端学习策略在特定区间的优化潜力；然而，当进入 $SL \ge 0.90$ 的高服务水平区间时，集成方法并未表现出优于 SAA 方法（橙线）的显著优势，部分指标甚至略有逊色。这一现象与原论文的实证结论高度一致，主要归因于端到端模型试图在有限样本（本研究约 6300 条）下直接学习输入特征与极端分位数（如 95\% 分位点）之间的复杂非线性映射，其对数据规模的高敏感性导致了在数据稀疏区域的泛化能力不如结构更为简约的 SAA 方法稳定。
-	
-	\begin{figure}[H]
-		\centering
-		\IfFileExists{../output/cost_curve.png}{\includegraphics[width=0.70\textwidth]{../output/cost_curve.png}}{\fbox{\strut 成本对比曲线图缺失}}
-		\caption{多服务水平下的平均成本对比曲线}
-		\label{fig:cost_curve}
-	\end{figure}
-	
-	% 第四部分：理解与思考（已扩充）
+	% 第四部分：理解与思考（内容已扩充，改为段落式）
 	\section{Discussion and Conclusion}
 	
 	\subsection{统计学视角的深度洞察}
-	本研究的实证结果提供了两个关键的统计学洞察，这些洞察超越了简单的成本数字对比：
+	本研究的实证结果提供了两个关键的统计学洞察，这些洞察超越了简单的成本数字对比，揭示了数据驱动决策背后的深层逻辑。
 	
-	\begin{enumerate}
-		\item \textbf{预测精度与决策质量的非线性关系 (Prediction $\neq$ Decision)}：
-		传统的统计评估指标（如 RMSE, MAPE）均等地惩罚正负误差。然而，报童问题的核心特征是非对称损失函数。一个在 RMSE 意义下表现“一般”但能准确估计需求上分位数的模型，在商业价值上远超一个低 RMSE 但系统性低估尾部风险的模型。Level 3 (IFO) 的理论价值正是在于它将损失函数与业务目标对齐，实现了从“拟合历史”到“优化未来”的范式转变。
-		
-		\item \textbf{偏差-方差权衡与模型鲁棒性}：
-		我们的复现结果极其有力地支持了 SAA 方法。从偏差-方差分解的角度看，参数化方法（Level 1）具有强偏差（Bias），假设了错误的正态分布；而复杂的端到端模型（Level 3）在小样本下具有高方差（Variance）。SAA 方法通过非参数估计消除了分布偏差，同时在数千样本量下保持了较低的估计方差，从而在中小规模数据集上实现了最佳的泛化性能。这体现了“奥卡姆剃刀”原则在工业实践中的重要性。
-	\end{enumerate}
+	第一个核心洞察是“预测精度与决策质量的非线性关系”（Prediction $\neq$ Decision）。在传统的预测任务中，我们习惯使用 RMSE 或 MAPE 等统计指标来衡量模型好坏，这些指标均等地惩罚正负误差。然而，报童问题的核心特征在于其损失函数的非对称性。在商业语境下，一个在 RMSE 意义下表现“一般”但能准确估计需求上分位数的模型，其商业价值可能远超一个 RMSE 很低但系统性低估尾部风险的模型。Level 3 (IFO) 的理论价值正是在于它将损失函数与业务目标（即报童成本）直接对齐，实现了从“拟合历史”到“优化未来”的范式转变，尽管其在小样本下的实现存在挑战，但这种方向代表了智能决策的未来趋势。
+	
+	第二个核心洞察是关于“偏差-方差权衡与模型鲁棒性”的思考。我们的复现结果极其有力地支持了 SAA 方法。从偏差-方差分解的角度看，Level 1 的参数化方法具有强偏差（Bias），因为它强制假设了往往并不存在的正态分布；而 Level 3 的复杂端到端模型在小样本下往往具有高方差（Variance），容易对训练数据的噪声过拟合。SAA 方法通过非参数估计消除了分布假设带来的偏差，同时在数千样本量下保持了较低的估计方差，从而在中小规模数据集上实现了最佳的泛化性能。这生动地体现了“奥卡姆剃刀”原则在工业数据科学实践中的重要性——在数据有限时，简单而鲁棒的方法往往优于复杂而脆弱的模型。
 	
 	\subsection{研究局限与改进方向}
-	尽管复现取得了成效，但受限于数据特性，本研究仍存在以下局限，值得未来深入探讨：
+	尽管复现工作取得了符合预期的成效，但受限于现有数据的特性，本研究仍存在一些不可忽视的局限性，值得在未来的工作中深入探讨。
 	
-	\begin{itemize}
-		\item \textbf{数据删失问题 (Censored Data Problem)}：
-		当前的复现隐含假设 $Sales \approx Demand$。然而在现实零售中，当发生缺货时，观测到的销量是被库存上限截断的（$Sales = \min(Demand, Inventory)$）。直接使用截断数据训练会低估真实需求的均值和尾部厚度。
-		\textbf{改进建议}：未来可引入计量经济学中的 \textbf{Tobit 模型}（删失回归）或生存分析中的 \textbf{Kaplan-Meier 估计} 来还原潜在的真实需求分布，这将显著提升模型在高服务水平下的表现。
-		
-		\item \textbf{模型扩展性}：
-		对于 Level 3，我们使用了基于树的模型。未来可以尝试使用 \textbf{DeepAR} 或 \textbf{MQ-CNN} (Multi-Horizon Quantile CNN) 等现代深度概率预测模型，这些模型在处理时间序列的长期依赖和跨序列信息共享方面可能优于简单的梯度提升树。
-	\end{itemize}
+	首先是数据删失问题（Censored Data Problem）。当前的复现研究隐含假设 $Sales \approx Demand$。然而在现实零售场景中，当发生缺货时，我们观测到的销量数据是被库存上限截断的（$Sales = \min(Demand, Inventory)$）。直接使用这种被截断的数据进行训练，会导致模型系统性地低估真实需求的均值和尾部厚度。针对这一问题，未来的改进建议是引入计量经济学中的 \textbf{Tobit 模型}（删失回归）或生存分析中的 \textbf{Kaplan-Meier 估计}。这些方法能够利用统计学原理还原潜在的真实需求分布，从而显著提升模型在高服务水平下的决策表现。
+	
+	其次是模型的扩展性问题。在本研究的 Level 3 实验中，我们使用了基于树的模型（梯度提升树）。虽然树模型在处理表格数据时表现优异，但在捕捉时间序列的长程依赖关系上存在局限。未来可以尝试使用 \textbf{DeepAR} 或 \textbf{MQ-CNN} (Multi-Horizon Quantile CNN) 等现代深度概率预测模型。这些模型不仅能够处理时间序列的长期依赖，还能通过跨序列信息共享（Global Models）在多产品间迁移学习，这对于解决尾部数据稀疏问题可能具有突破性的意义。
 	
 	% ==================== 附录 ====================
 	\newpage
@@ -295,7 +185,7 @@
 	% 重定义附录的章节标题格式
 	\titleformat{\section}{\large\bfseries}{附录 \Alph{section}}{1em}{}
 	
-	% === 新增附录 A：原论文实证结果 ===
+	% === 附录 A：原论文实证结果 ===
 	\section{原论文实证结果图表}
 	\label{appendix:paper_figs}
 	
@@ -320,6 +210,77 @@
 		\label{fig:paper_fig5}
 	\end{figure}
 	
+	% === 新增附录 B：小组复现实验图表 ===
+	\section{小组复现实验图表}
+	\label{appendix:group_results}
+	
+	\begin{table}[H]
+		\centering
+		\caption{Level 1 需求预测模型性能对比}
+		\label{tab:level1_perf}
+		\begin{tabular}{lccc}
+			\toprule
+			\textbf{Model} & \textbf{RMSE} & \textbf{MAE} & \textbf{$R^2$ Score} \\
+			\midrule
+			Linear Regression & 27.54 & 14.82 & 90.10\% \\
+			\textbf{Random Forest} & \textbf{23.35} & \textbf{12.71} & \textbf{92.89\%} \\
+			\midrule
+			\textit{Improvement} & \textit{-15.2\%} & \textit{-14.2\%} & \textit{+2.79 \%} \\
+			\bottomrule
+		\end{tabular}
+	\end{table}
+	
+	\begin{table}[H]
+		\centering
+		\caption{不同服务水平下的平均日成本对比}
+		\label{tab:cost_comparison}
+		\begin{tabular}{c|cc|c}
+			\toprule
+			\textbf{Service Level} & \multicolumn{2}{c|}{\textbf{Level 2}} & \textbf{Level 3} \\
+			\textbf{目标} & 正态 & \textbf{SAA} & 分位数回归 \\
+			\midrule
+			0.50 & \textbf{9.52} & 9.55 & 10.56 \\
+			0.70 & \textbf{9.32} & 9.34 & 9.55 \\
+			0.80 & 9.65 & \textbf{9.27} & 9.81 \\
+			0.90 & 10.43 & \textbf{9.45} & 11.95 \\
+			0.95 & 11.24 & \textbf{10.15} & 13.19 \\
+			\bottomrule
+		\end{tabular}
+	\end{table}
+	
+	\begin{figure}[H]
+		\centering
+		\IfFileExists{../output/inventory_result.png}{\includegraphics[width=0.95\textwidth]{../output/inventory_result.png}}{\fbox{\strut SAA 库存决策图缺失，请检查路径}}
+		\caption{Level 2 决策可视化：真实需求、ML 预测值与基于 SAA 的最优订货量}
+		\label{fig:level2_viz}
+	\end{figure}
+	
+	\begin{table}[H]
+		\centering
+		\caption{Level 3 集成优化模型最优超参数配置}
+		\label{tab:level3_tuning}
+		\small
+		\begin{tabular}{ccc}
+			\toprule
+			\textbf{Target SL} & \textbf{Test Cost} & \textbf{Best Parameters (n\_estimators, max\_depth, lr)} \\
+			\midrule
+			0.50 & 10.56 & (400, 2, 0.05) \\
+			0.70 & \textbf{9.55} & (200, 3, 0.05) \\
+			0.80 & 9.81 & (100, 3, 0.10) \\
+			0.90 & 11.95 & (100, 2, 0.10) \\
+			0.95 & 13.19 & (400, 4, 0.03) \\
+			\bottomrule
+		\end{tabular}
+	\end{table}
+	
+	\begin{figure}[H]
+		\centering
+		\IfFileExists{../output/cost_curve.png}{\includegraphics[width=0.70\textwidth]{../output/cost_curve.png}}{\fbox{\strut 成本对比曲线图缺失}}
+		\caption{多服务水平下的平均成本对比曲线}
+		\label{fig:cost_curve}
+	\end{figure}
+	
+	% === 附录 C：推导 ===
 	\section{报童模型一阶最优性条件的推导}
 	\label{appendix:derivation}
 	
@@ -341,6 +302,7 @@
 	\]
 	最终得到临界分位数公式：$F(q^*) = \frac{c_u}{c_u + c_o}$。
 	
+	% === 附录 D：代码逻辑 ===
 	\section{数据清洗与特征工程关键逻辑}
 	\label{appendix:code}
 	
@@ -373,6 +335,7 @@
 		agg[['sales','revenue']] = agg[['sales','revenue']].fillna(0)
 	\end{lstlisting}
 	
+	% === 附录 E：网格搜索 ===
 	\section{Level 3 模型超参数网格搜索空间}
 	\label{appendix:gridsearch}
 	

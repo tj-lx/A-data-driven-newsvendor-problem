@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.2 NEXT) (preloaded format=xelatex 2025.12.17)  19 DEC 2025 17:48
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.2 NEXT) (preloaded format=xelatex 2025.12.17)  24 DEC 2025 08:20
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1058,7 +1058,7 @@ Package fontspec Info:
 [5]
 
 [6]
-Overfull \hbox (2.70744pt too wide) in paragraph at lines 149--150
+Overfull \hbox (2.70744pt too wide) in paragraph at lines 171--172
 |\TU/SimSun(0)/m/n/12 “集 成 估 计 与 优 化”|  策 略 的 有 效 性。|  具 体 实 施 中，|  本 研 究 采 用 \
 TU/lmtt/m/n/12 GradientBoostingRegressor
  []
@@ -1090,7 +1090,7 @@ File: ../output/cost_curve.png Graphic file (type bmp)
 (C:\Users\Xavier\AppData\Local\Programs\MiKTeX\tex/latex/listings\lstlang1.sty
 File: lstlang1.sty 2024/09/23 1.10c listings language file
 )
-Overfull \hbox (16.80095pt too wide) in paragraph at lines 332--333
+Overfull \hbox (16.80095pt too wide) in paragraph at lines 354--355
 []\TU/SimSun(0)/m/n/12 在 集 成 优 化 阶 段，|  我 们 使 用 了 \TU/lmtt/m/n/12 TimeSeriesSpl
 it \TU/lmr/m/n/12 (3 \TU/SimSun(0)/m/n/12 折\TU/lmr/m/n/12 ) \TU/SimSun(0)/m/n/1
 2 对 \TU/lmtt/m/n/12 GradientBoostingRegressor
@@ -1105,21 +1105,14 @@ it \TU/lmr/m/n/12 (3 \TU/SimSun(0)/m/n/12 折\TU/lmr/m/n/12 ) \TU/SimSun(0)/m/n/
 LaTeX2e <2025-06-01> patch level 1
 L3 programming layer <2022/08/05>
  ***********
-
-
-Package rerunfilecheck Warning: File `present.out' has changed.
-(rerunfilecheck)                Rerun to get outlines right
-(rerunfilecheck)                or use package `bookmark'.
-
-Package rerunfilecheck Info: Checksums for `present.out':
-(rerunfilecheck)             Before: 84565F114327A72535874C6D6433D7A8;4073
-(rerunfilecheck)             After:  65F49CAF2F3BDA2128F63B864B8A2B9A;3989.
+Package rerunfilecheck Info: File `present.out' has not changed.
+(rerunfilecheck)             Checksum: 65F49CAF2F3BDA2128F63B864B8A2B9A;3989.
  ) 
 Here is how much of TeX's memory you used:
- 19609 strings out of 403249
- 405020 string characters out of 5460652
- 1127518 words of memory out of 5000000
- 47801 multiletter control sequences out of 15000+600000
+ 19620 strings out of 403249
+ 405643 string characters out of 5460652
+ 1127713 words of memory out of 5000000
+ 47812 multiletter control sequences out of 15000+600000
  637931 words of font info for 117 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
  93i,9n,111p,546b,1262s stack positions out of 10000i,1000n,20000p,200000b,200000s
